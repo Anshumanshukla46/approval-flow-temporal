@@ -155,23 +155,31 @@ This is a classic use of the Proxy Design Pattern.
 
         It supports bidirectional streaming, timeouts, deadlines, and typed contracts — which are perfect for Temporal complex workflows
          */
+
+        /*
+            Use .start(...) when you don’t care about result immediately (fire-and-forget).
+
+            Use .execute(...).get() when you need the return value (like for logging APPROVED/REJECTED).
+         */
+
         WorkflowExecution execution = WorkflowClient.start(workflow::startOrder, orderId);
 
         return "Started workflow, ID=" + execution.getWorkflowId();
     }
 
-    // Send approval signal
+
     public String sendApprovalSignal(String orderId, String approverId) {
         WorkflowStub stub = client.newUntypedWorkflowStub(orderId); // Find the workflow that has the WorkflowId = orderId and give me a handle (stub) to it.
         stub.signal("approveOrder", approverId); // Because Temporal uses Java reflection + annotations to bind
-        return "Approval signal sent for order " + orderId + " by approver " + approverId;
+        return "OrderId: "+orderId+" is approved by approver of id"+approverId;
     }
 
-    // Send rejection signal
+
     public String sendRejectionSignal(String orderId, String approverId) {
         WorkflowStub stub = client.newUntypedWorkflowStub(orderId);
         stub.signal("rejectOrder", approverId);
-        return "Rejection signal sent for order " + orderId + " by approver " + approverId;
+        stub.cancel(); // now this will be canceled, not completed
+        return "OrderId: "+orderId+" is rejected by approver of id: "+approverId;
     }
 
 }

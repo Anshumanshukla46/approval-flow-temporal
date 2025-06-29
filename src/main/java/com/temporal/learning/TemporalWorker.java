@@ -1,5 +1,6 @@
 package com.temporal.learning;
 
+import com.temporal.learning.activities.NotificationActivitiesImpl;
 import com.temporal.learning.activities.PaymentActivitiesImpl;
 import com.temporal.learning.activities.ShippingActivitiesImpl;
 import com.temporal.learning.workflow.OrderWorkflowImpl;
@@ -9,6 +10,23 @@ import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+
+/*
+        [Your Spring App - Controller/Service]
+                    |
+                    | (via Temporal Client, using gRPC)
+                    v
+    [Temporal Server (localhost:7233)]
+                         |
+        --------------------------------------
+        |         |         |       |        |
+        Event History  Task Queue  Signals  State Store
+                         |
+          [Worker (polls the queue)]
+                         |
+            Runs workflow/activity logic
+*/
 
 
 /*
@@ -116,36 +134,25 @@ public class TemporalWorker {
         return new ShippingActivitiesImpl();
     }
 
+    @Bean
+    public NotificationActivitiesImpl notificationActivities() {
+        return new NotificationActivitiesImpl();
+    }
+
 
     @Bean
     public Worker worker(WorkerFactory factory,
                          PaymentActivitiesImpl paymentActivities,
-                         ShippingActivitiesImpl shippingActivities) {
+                         ShippingActivitiesImpl shippingActivities, NotificationActivitiesImpl notificationActivities) {
 
         Worker worker = factory.newWorker("OrderTaskQueue"); // Create a Worker listening on the "OrderTaskQueue"
 
         worker.registerWorkflowImplementationTypes(OrderWorkflowImpl.class); // Register our Workflow implementation class
 
-        worker.registerActivitiesImplementations(paymentActivities, shippingActivities); // Register Activity implementation instances
+        worker.registerActivitiesImplementations(paymentActivities, shippingActivities, notificationActivities); // Register Activity implementation instances
 
         factory.start(); // Start polling in the background
         return worker;
     }
 
 }
-
-/*
-    [Your Spring App - Controller/Service]
-        |
-        | (via Temporal Client, using gRPC)
-        v
-    [Temporal Server (localhost:7233)]
-        |
-        --------------------------------------
-        |         |         |       |        |
-        Event History  Task Queue  Signals  State Store
-            |
-          [Worker (polls the queue)]
-                |
-        Runs workflow/activity logic
-*/

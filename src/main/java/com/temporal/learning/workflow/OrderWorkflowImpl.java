@@ -1,8 +1,11 @@
 package com.temporal.learning.workflow;
 
+import com.temporal.learning.OrderStatus;
+import com.temporal.learning.activities.NotificationActivities;
 import com.temporal.learning.activities.PaymentActivities;
 import com.temporal.learning.activities.ShippingActivities;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.workflow.Workflow;
 
 import java.time.Duration;
@@ -45,7 +48,7 @@ public class OrderWorkflowImpl implements OrderWorkflow{
     private final List<String> allowedApprovers = Arrays.asList("me", "myself", "i");
 
     @Override
-    public void startOrder(String orderId) {
+    public OrderStatus startOrder(String orderId) {
 
         // Logging in temporal
         /*
@@ -66,16 +69,14 @@ public class OrderWorkflowImpl implements OrderWorkflow{
             With regular logger:
             ❌ Logs again during replay — confusing logs and possibly doubling output
          */
-        Workflow.getLogger(this.getClass())
-                .info("Order {} started. Waiting for approval or rejection.", orderId);
+        Workflow.getLogger(this.getClass()).info("Order of id: {} started. Waiting for approval or rejection.", orderId);
 
 
         // Wait until either approve or reject signal sets the state
         Workflow.await(() -> isApproved || isRejected);
 
-        if (isApproved) {
 
-            /*
+        /*
                 Each activity must finish within 30 seconds, or it will be considered failed by Temporal
                 how:
                 Once the method completes successfully, the worker:
@@ -85,11 +86,16 @@ public class OrderWorkflowImpl implements OrderWorkflow{
                 Temporal then:
                 - Resumes the workflow from where it left off (e.g., runs prepareShipment() next).
              */
-            ActivityOptions options = ActivityOptions.newBuilder()
-                    .setStartToCloseTimeout(Duration.ofSeconds(30))
-                    .build();
+        ActivityOptions options = ActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(1))
+                .build();
 
 
+        // THIS WILL RUN BY DEFAULT
+        NotificationActivities notification = Workflow.newActivityStub(NotificationActivities.class, options);
+
+        if (isApproved) {
+        notification.notify(orderId);
             /*
                 Temporal uses the stub to:
                 - Send the activity task to a worker.
@@ -103,8 +109,11 @@ public class OrderWorkflowImpl implements OrderWorkflow{
 
             Workflow.getLogger(this.getClass()).info("Order {} approved by approver {}.", orderId, approverId);
 
+            return OrderStatus.APPROVED;
         } else {
+            notification.notify(orderId);
             Workflow.getLogger(this.getClass()).info("Order {} was rejected by approver {}.", orderId, approverId);
+            return OrderStatus.REJECTED;
         }
     }
 
