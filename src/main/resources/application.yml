@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: temporal-order-app
+  temporal:
+    namespace: default
+    task-queue: OrderTaskQueue

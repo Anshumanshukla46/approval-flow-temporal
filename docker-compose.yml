@@ -1,0 +1,17 @@
+# setting up Temporal Server using Docker Compose
+
+services:
+  temporal:
+    image: temporalio/server:1.24.0
+    entrypoint:
+      - temporal
+      - server
+      - start-dev
+      - --namespace=default # Namespace => environment (e.g., dev, prod), Because many applications or microservices might be using the same Temporal server.
+      - --db-filename=/tmp/sqlite/db
+      - --ip=0.0.0.0
+    ports:
+      - "7233:7233" # gRPC port — your Java Spring app uses this to connect to Temporal
+      - "8233:8233" # web UI
+    volumes:
+      - ./sqlite_db:/tmp/sqlite
