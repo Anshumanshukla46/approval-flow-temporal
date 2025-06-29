@@ -35,8 +35,8 @@ out/
 ### VS Code ###
 .vscode/
 
-gradle
+gradle/
 
-sqlite_db
+sqlite_db/
 
 .gitattributes
